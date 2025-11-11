@@ -1,0 +1,33 @@
+/**
+ * ============================================================================
+ * GLOBAL STYLES - index.css
+ * ============================================================================
+ * This file contains global CSS styles for the entire application
+ * 
+ * Tailwind CSS Directives:
+ * ------------------------
+ * These @tailwind directives tell Tailwind to inject its utility classes
+ * 
+ * @tailwind base:
+ * - Tailwind's base styles (normalize.css, default element styles)
+ * - Resets browser defaults for consistent styling across browsers
+ * 
+ * @tailwind components:
+ * - Component-level classes (if you create custom Tailwind components)
+ * - Not used in this project, but available if needed
+ * 
+ * @tailwind utilities:
+ * - All the utility classes (like flex, bg-blue-500, text-center, etc.)
+ * - This is what makes classes like "flex" and "text-white" work
+ * 
+ * How Tailwind Works:
+ * -------------------
+ * 1. You write classes in your JSX (like className="flex text-white")
+ * 2. Tailwind scans your files for these classes
+ * 3. Tailwind generates CSS for only the classes you actually use
+ * 4. This keeps your final CSS file small and optimized
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
