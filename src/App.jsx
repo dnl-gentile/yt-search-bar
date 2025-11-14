@@ -45,6 +45,8 @@ const SearchIcon = ({ className }) => (
       d="M16.296 16.996a8 8 0 11.707-.708l3.909 3.91-.707.707-3.909-3.909zM18 11a7 7 0 00-14 0 7 7 0 1014 0z"
       fillRule="evenodd"
       fill="currentColor"
+      stroke="currentColor"
+      strokeWidth="0.5"
     />
   </svg>
 );
@@ -224,6 +226,7 @@ export default function App() {
    * with the new value, updating the UI
    */
   const [query, setQuery] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
 
   /**
    * handleSearch Function
@@ -288,37 +291,46 @@ export default function App() {
         Tailwind classes:
         - flex-grow: Takes up remaining vertical space
         - flex: Flexbox container
-        - flex-col: Stack children vertically
         - items-center: Center items horizontally
         - justify-center: Center items vertically
         - px-4: Horizontal padding of 1rem
-        - Removed negative margin to allow natural spacing
       */}
-      <main className="flex-grow flex flex-col items-center justify-center px-4">
+      <main className="flex-grow flex items-center justify-center px-4 sm:px-4">
+        {/* 
+          Container for searchbar - searchbar is centered independently
+          - relative: Allows absolute positioning of logo relative to this container
+          - flex: Flexbox container
+          - items-center: Center items horizontally
+          - justify-center: Center items vertically
+        */}
+        <div className="relative flex items-center justify-center">
           {/* 
-          YouTube Logo Link
-          - href: Where the link goes when clicked
-          - className: Larger logo size (40% increase from original)
-            - Larger max-width for bigger logo
-            - mb-12: Spacing between logo and search bar (3rem/48px)
+          YouTube Logo Link - positioned above the searchbar
+          - absolute: Positioned relative to the searchbar container
+          - bottom-full: Positioned above the container
+          - mb-8 sm:mb-12: Spacing between logo and search bar (smaller on mobile)
+          - left-1/2 -translate-x-1/2: Centers the logo horizontally
+          - w-full max-w-md sm:max-w-lg: Logo size constraints
           - aria-label: Accessibility label for screen readers
         */}
-        <a
-          href="https://www.youtube.com"
-          className="w-full max-w-md sm:max-w-lg flex items-center justify-center mb-12"
-          aria-label="YouTube Homepage"
-        >
-          {/* Render the YouTube logo component */}
-          <YouTubeLogo />
-        </a>
+          <a
+            href="https://www.youtube.com"
+            className="absolute bottom-full mb-8 sm:mb-12 left-1/2 -translate-x-1/2 w-full max-w-md sm:max-w-lg flex items-center justify-center"
+            aria-label="YouTube Homepage"
+          >
+            {/* Render the YouTube logo component */}
+            <YouTubeLogo />
+          </a>
 
-        {/* 
-          Search Box - Matching YouTube's structure with separate input box and button
+          {/* 
+          Search Box - Centered independently on the page
           - flex: Makes container a flexbox to align input and button
           - items-center: Vertically centers the input and button
-          - max-w-2xl: Search bar width (42rem/672px) - original width before shortening
+          - w-[90vw] sm:w-[70vw] md:w-[50vw]: Responsive width (90% mobile, 70% tablet, 50% desktop)
+          - max-w-6xl: Maximum width constraint for very large screens
+          - This is the centered reference point - stays fixed width
         */}
-        <div className="w-full max-w-2xl flex items-center">
+          <div className="w-[90vw] sm:w-[70vw] md:w-[50vw] max-w-6xl flex items-center">
           {/* 
             Input Box Container - Separate div for the input (matching YouTube's structure)
             - flex: Flexbox container for the input
@@ -329,25 +341,33 @@ export default function App() {
             - rounded-l-full: Rounded left corners (pill shape on left)
             - rounded-r-none: Sharp right corners (connects to button)
             - h-11: Height of 2.75rem (44px) - slightly shorter than original
-            - px-4: Horizontal padding
             - flex-1: Takes up remaining space
             - focus-within:border-[#1C62B9]: Blue border when focused
             - focus-within:outline: Blue outline when focused
             - focus-within:outline-1: Thin outline
             - focus-within:outline-[#1C62B9]: Blue outline color
+            - Expands to the left when icon appears (negative margin) without affecting button
           */}
-          <div className="flex items-center bg-[#121212] border border-[#303030] rounded-l-full rounded-r-none h-11 px-4 flex-1 focus-within:border-[#1C62B9] focus-within:outline focus-within:outline-1 focus-within:outline-[#1C62B9]">
+          <div className={`relative flex items-center bg-[#121212] border border-[#303030] rounded-l-full rounded-r-none h-12 sm:h-11 flex-1 focus-within:border-[#1C62B9] focus-within:outline focus-within:outline-1 focus-within:outline-[#1C62B9] transition-all duration-200 ${(isFocused || query) ? '-ml-8 sm:-ml-10' : ''}`}>
+            {/* Magnifying glass icon on the left - only visible when focused or typing, positioned absolutely */}
+            {(isFocused || query) && (
+              <div className="absolute left-3 sm:left-4 flex-shrink-0 pointer-events-none z-10">
+                <SearchIcon className="h-5 w-5 text-[#9AA0A6]" />
+              </div>
+            )}
             <form 
               onSubmit={handleSearch}
-              className="flex-1"
+              className={`flex-1 transition-all duration-200 ${(isFocused || query) ? 'ml-5 sm:ml-6' : ''}`}
             >
               {/* 
-              Text Input - No icon on the left, just placeholder text
+              Text Input - With magnifying glass icon on the left when focused
               - type="text": Standard text input
               - value={query}: Controlled component - value is controlled by React state
               - onChange: Event handler that runs on every keystroke
                 - e.target.value: The current value in the input field
                 - setQuery(): Updates the state, which triggers a re-render
+              - onFocus: Event handler when input is focused (clicked/selected)
+              - onBlur: Event handler when input loses focus
               - placeholder: Placeholder text shown when input is empty
               - className: Styling classes matching YouTube
                 - w-full: Full width of container
@@ -356,13 +376,18 @@ export default function App() {
                 - text-base: Base text size (16px) matching YouTube's input text size
                 - placeholder:text-[#9AA0A6]: Lighter gray placeholder text matching YouTube
                 - outline-none: Removes browser default focus outline
+                - pl-3 sm:pl-4: Normal padding when no icon
+                - pl-10 sm:pl-12: Extra left padding when icon appears
+                - pr-3 sm:pr-4: Right padding
               */}
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
                 placeholder="Search"
-                className="w-full bg-transparent text-white text-base outline-none placeholder:text-[#9AA0A6]"
+                className={`w-full bg-transparent text-white text-base outline-none placeholder:text-[#9AA0A6] pr-3 sm:pr-4 transition-all duration-200 ${(isFocused || query) ? 'pl-8 sm:pl-10' : 'pl-3 sm:pl-4'}`}
                 aria-label="Search YouTube"
               />
             </form>
@@ -389,13 +414,14 @@ export default function App() {
           <button
             type="button"
             onClick={handleSearch}
-            className="bg-[#272727] text-white px-6 h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
+            className="bg-[#272727] text-white px-4 sm:px-6 h-12 sm:h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
             aria-label="Search"
             title="Search"
           >
             {/* White filled magnifying glass icon - matching YouTube's size (18px) */}
             <SearchIcon className="h-[26px] w-[26px] text-white" />
           </button>
+          </div>
         </div>
       </main>
     </div>
