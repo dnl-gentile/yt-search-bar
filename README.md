@@ -4,6 +4,9 @@
 
 A clean, minimal web application that provides a distraction-free YouTube search experience. This is the search interface used by the [YouTube No Distractions](https://github.com/dnl-gentile/yt-no-distractions-ext) Chrome extension.
 
+<img width="1440" height="900" alt="Screenshot 2025-11-17 at 22 33 14" src="https://github.com/user-attachments/assets/afebf4d3-d082-4e29-9308-f3c9a4fd0240" />
+
+
 ## 🎯 Purpose
 
 This web app provides a simple, focused search interface for YouTube without any distractions — no recommendations, no trending videos, no homepage noise. Just search for what you want and go.
