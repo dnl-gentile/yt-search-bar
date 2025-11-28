@@ -29,6 +29,12 @@ import App from './App.jsx'
 import './index.css'
 
 /**
+ * Firebase: Initialize Firebase and Analytics
+ *            This sets up Firebase for the app (analytics, etc.)
+ */
+import './firebase.js'
+
+/**
  * ReactDOM.createRoot()
  * ---------------------
  * Creates a React root container
