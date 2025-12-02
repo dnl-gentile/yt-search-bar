@@ -10,7 +10,7 @@
  *                 Using ?raw to get the SVG as a string so we can modify colors
  *                 This allows us to change the text color to white
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import youtubeLogoSvg from './assets/YouTube_Logo_2017.svg?raw';
 
 /**
@@ -212,6 +212,8 @@ const SearchHeader = () => (
  * export default: Makes this component available to other files that import it
  */
 export default function App() {
+  console.log('[Autocomplete] App component rendered');
+  
   /**
    * useState Hook
    * ------------
@@ -227,6 +229,232 @@ export default function App() {
    */
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const suggestionsRef = useRef(null);
+  const inputRef = useRef(null);
+  const debounceTimeoutRef = useRef(null);
+  
+  console.log('[Autocomplete] Component state - query:', query, 'suggestions:', suggestions.length, 'showSuggestions:', showSuggestions);
+
+  /**
+   * Fetch search suggestions from YouTube using JSONP to avoid CORS issues
+   * Uses YouTube's autocomplete API endpoint with JSONP callback
+   */
+  const fetchSuggestions = (searchQuery) => {
+    console.log('[Autocomplete] fetchSuggestions called with query:', searchQuery);
+    
+    if (!searchQuery.trim()) {
+      console.log('[Autocomplete] Query is empty, clearing suggestions');
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    // Remove any existing JSONP script
+    const existingScript = document.getElementById('youtube-suggestions-jsonp');
+    if (existingScript) {
+      console.log('[Autocomplete] Removing existing JSONP script');
+      existingScript.remove();
+      delete window.youtubeSuggestionsCallback;
+    }
+
+    // Create a unique callback name
+    const callbackName = `youtubeSuggestionsCallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('[Autocomplete] Using JSONP callback:', callbackName);
+
+    // Store timeout reference for cleanup
+    let timeoutId = null;
+
+    // Create the callback function
+    window[callbackName] = (data) => {
+      console.log('[Autocomplete] JSONP callback received data:', data);
+      console.log('[Autocomplete] Data type:', typeof data, 'Is array:', Array.isArray(data));
+      
+      // Clear timeout
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      
+      // Clean up
+      const script = document.getElementById('youtube-suggestions-jsonp');
+      if (script) {
+        script.remove();
+      }
+      delete window[callbackName];
+
+      if (Array.isArray(data)) {
+        console.log('[Autocomplete] Data length:', data.length);
+        if (data.length > 0) {
+          console.log('[Autocomplete] Data[0]:', data[0]);
+        }
+        if (data.length > 1) {
+          console.log('[Autocomplete] Data[1]:', data[1]);
+        }
+      }
+
+      // The API returns an array where the second element contains the suggestions
+      if (Array.isArray(data) && data.length > 1 && Array.isArray(data[1])) {
+        const suggestionsList = data[1].slice(0, 8); // Limit to 8 suggestions
+        console.log('[Autocomplete] Parsed suggestions:', suggestionsList);
+        console.log('[Autocomplete] Setting suggestions, count:', suggestionsList.length);
+        setSuggestions(suggestionsList);
+        setShowSuggestions(true);
+        console.log('[Autocomplete] showSuggestions set to true');
+      } else if (Array.isArray(data) && data.length > 0 && Array.isArray(data[0])) {
+        // Try alternative format - sometimes suggestions are in data[0]
+        console.log('[Autocomplete] Trying alternative format - data[0]');
+        const suggestionsList = data[0].slice(0, 8);
+        console.log('[Autocomplete] Found suggestions in data[0]:', suggestionsList);
+        setSuggestions(suggestionsList);
+        setShowSuggestions(true);
+      } else {
+        console.log('[Autocomplete] Invalid data structure. Data:', data);
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    };
+
+    // Create the script tag for JSONP
+    const script = document.createElement('script');
+    script.id = 'youtube-suggestions-jsonp';
+    const apiUrl = `https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q=${encodeURIComponent(searchQuery)}&callback=${callbackName}`;
+    script.src = apiUrl;
+    console.log('[Autocomplete] Loading JSONP script from:', apiUrl);
+
+    script.onerror = (error) => {
+      console.error('[Autocomplete] JSONP script load error:', error);
+      const scriptEl = document.getElementById('youtube-suggestions-jsonp');
+      if (scriptEl) {
+        scriptEl.remove();
+      }
+      delete window[callbackName];
+      setSuggestions([]);
+      setShowSuggestions(false);
+    };
+
+    // Add timeout to clean up if callback never fires
+    timeoutId = setTimeout(() => {
+      console.warn('[Autocomplete] JSONP timeout - callback not called');
+      const scriptEl = document.getElementById('youtube-suggestions-jsonp');
+      if (scriptEl) {
+        scriptEl.remove();
+      }
+      if (window[callbackName]) {
+        delete window[callbackName];
+      }
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }, 5000);
+
+    document.head.appendChild(script);
+    console.log('[Autocomplete] JSONP script appended to head');
+  };
+
+  /**
+   * Handle input change with debouncing
+   */
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    console.log('[Autocomplete] Input changed to:', value);
+    setQuery(value);
+    setSelectedIndex(-1);
+
+    // Clear previous timeout
+    if (debounceTimeoutRef.current) {
+      console.log('[Autocomplete] Clearing previous debounce timeout');
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Debounce the API call
+    console.log('[Autocomplete] Setting new debounce timeout');
+    debounceTimeoutRef.current = setTimeout(() => {
+      console.log('[Autocomplete] Debounce timeout fired, calling fetchSuggestions');
+      fetchSuggestions(value);
+    }, 200); // Wait 200ms after user stops typing
+  };
+
+  /**
+   * Handle keyboard navigation in suggestions
+   */
+  const handleKeyDown = (e) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === 'Enter') {
+        handleSearch(e);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex((prev) => 
+          prev < suggestions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+          handleSuggestionClick(suggestions[selectedIndex]);
+        } else {
+          handleSearch(e);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setSelectedIndex(-1);
+        inputRef.current?.blur();
+        break;
+      default:
+        break;
+    }
+  };
+
+  /**
+   * Handle suggestion click
+   */
+  const handleSuggestionClick = (suggestion) => {
+    setQuery(suggestion);
+    setShowSuggestions(false);
+    setSelectedIndex(-1);
+    
+    // Navigate to YouTube search
+    const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(suggestion)}`;
+    window.location.href = youtubeSearchUrl;
+  };
+
+  /**
+   * Handle input focus
+   */
+  const handleFocus = () => {
+    console.log('[Autocomplete] Input focused');
+    console.log('[Autocomplete] Current suggestions count:', suggestions.length);
+    setIsFocused(true);
+    if (suggestions.length > 0) {
+      console.log('[Autocomplete] Showing suggestions on focus');
+      setShowSuggestions(true);
+    } else {
+      console.log('[Autocomplete] No suggestions to show on focus');
+    }
+  };
+
+  /**
+   * Handle input blur (with delay to allow clicks on suggestions)
+   */
+  const handleBlur = () => {
+    setIsFocused(false);
+    // Delay hiding suggestions to allow clicks
+    setTimeout(() => {
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+    }, 200);
+  };
 
   /**
    * handleSearch Function
@@ -262,6 +490,20 @@ export default function App() {
       window.location.href = youtubeSearchUrl;
     }
   };
+
+  // Log state changes for debugging
+  useEffect(() => {
+    console.log('[Autocomplete] State changed - suggestions:', suggestions, 'showSuggestions:', showSuggestions, 'query:', query);
+  }, [suggestions, showSuggestions, query]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   /**
    * JSX Return
@@ -330,97 +572,147 @@ export default function App() {
           - max-w-6xl: Maximum width constraint for very large screens
           - This is the centered reference point - stays fixed width
         */}
-          <div className="w-[90vw] sm:w-[70vw] md:w-[50vw] max-w-6xl flex items-center">
+          <div className="w-[90vw] sm:w-[70vw] md:w-[50vw] max-w-6xl flex flex-col items-center">
           {/* 
-            Input Box Container - Separate div for the input (matching YouTube's structure)
-            - flex: Flexbox container for the input
+            Input and Button Container - Horizontal flex container
+            - flex: Flexbox container for input and button
             - items-center: Vertically centers content
-            - bg-[#121212]: YouTube's input box background color
-            - border: Border around the input box
-            - border-[#303030]: YouTube's border color
-            - rounded-l-full: Rounded left corners (pill shape on left)
-            - rounded-r-none: Sharp right corners (connects to button)
-            - h-11: Height of 2.75rem (44px) - slightly shorter than original
-            - flex-1: Takes up remaining space
-            - focus-within:border-[#1C62B9]: Blue border when focused
-            - focus-within:outline: Blue outline when focused
-            - focus-within:outline-1: Thin outline
-            - focus-within:outline-[#1C62B9]: Blue outline color
-            - Expands to the left when icon appears (negative margin) without affecting button
+            - w-full: Full width of parent
           */}
-          <div className={`relative flex items-center bg-[#121212] border border-[#303030] rounded-l-full rounded-r-none h-12 sm:h-11 flex-1 focus-within:border-[#1C62B9] focus-within:outline focus-within:outline-1 focus-within:outline-[#1C62B9] transition-all duration-200 ${(isFocused || query) ? '-ml-8 sm:-ml-10' : ''}`}>
-            {/* Magnifying glass icon on the left - only visible when focused or typing, positioned absolutely */}
-            {(isFocused || query) && (
-              <div className="absolute left-3 sm:left-4 flex-shrink-0 pointer-events-none z-10">
-                <SearchIcon className="h-5 w-5 text-[#9AA0A6]" />
-              </div>
-            )}
-            <form 
-              onSubmit={handleSearch}
-              className={`flex-1 transition-all duration-200 ${(isFocused || query) ? 'ml-5 sm:ml-6' : ''}`}
-            >
-              {/* 
-              Text Input - With magnifying glass icon on the left when focused
-              - type="text": Standard text input
-              - value={query}: Controlled component - value is controlled by React state
-              - onChange: Event handler that runs on every keystroke
-                - e.target.value: The current value in the input field
-                - setQuery(): Updates the state, which triggers a re-render
-              - onFocus: Event handler when input is focused (clicked/selected)
-              - onBlur: Event handler when input loses focus
-              - placeholder: Placeholder text shown when input is empty
-              - className: Styling classes matching YouTube
-                - w-full: Full width of container
-                - bg-transparent: No background (transparent)
-                - text-white: White text
-                - text-base: Base text size (16px) matching YouTube's input text size
-                - placeholder:text-[#9AA0A6]: Lighter gray placeholder text matching YouTube
-                - outline-none: Removes browser default focus outline
-                - pl-3 sm:pl-4: Normal padding when no icon
-                - pl-10 sm:pl-12: Extra left padding when icon appears
-                - pr-3 sm:pr-4: Right padding
-              */}
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                placeholder="Search"
-                className={`w-full bg-transparent text-white text-base outline-none placeholder:text-[#9AA0A6] pr-3 sm:pr-4 transition-all duration-200 ${(isFocused || query) ? 'pl-8 sm:pl-10' : 'pl-3 sm:pl-4'}`}
-                aria-label="Search YouTube"
-              />
-            </form>
-          </div>
+          <div className="w-full flex items-center">
+            {/* 
+              Input Box Container - Separate div for the input (matching YouTube's structure)
+              - flex: Flexbox container for the input
+              - items-center: Vertically centers content
+              - bg-[#121212]: YouTube's input box background color
+              - border: Border around the input box
+              - border-[#303030]: YouTube's border color
+              - rounded-l-full: Rounded left corners (pill shape on left)
+              - rounded-r-none: Sharp right corners (connects to button)
+              - h-11: Height of 2.75rem (44px) - slightly shorter than original
+              - flex-1: Takes up remaining space
+              - focus-within:border-[#1C62B9]: Blue border when focused
+              - focus-within:outline: Blue outline when focused
+              - focus-within:outline-1: Thin outline
+              - focus-within:outline-[#1C62B9]: Blue outline color
+              - Expands to the left when icon appears (negative margin) without affecting button
+            */}
+            <div className={`relative flex items-center bg-[#121212] border border-[#303030] rounded-l-full rounded-r-none h-12 sm:h-11 flex-1 focus-within:border-[#1C62B9] focus-within:outline focus-within:outline-1 focus-within:outline-[#1C62B9] transition-all duration-200 ${(isFocused || query) ? '-ml-8 sm:-ml-10' : ''}`}>
+              {/* Magnifying glass icon on the left - only visible when focused or typing, positioned absolutely */}
+              {(isFocused || query) && (
+                <div className="absolute left-3 sm:left-4 flex-shrink-0 pointer-events-none z-10">
+                  <SearchIcon className="h-5 w-5 text-[#9AA0A6]" />
+                </div>
+              )}
+              <form 
+                onSubmit={handleSearch}
+                className={`flex-1 transition-all duration-200 ${(isFocused || query) ? 'ml-5 sm:ml-6' : ''}`}
+              >
+                {/* 
+                Text Input - With magnifying glass icon on the left when focused
+                - type="text": Standard text input
+                - value={query}: Controlled component - value is controlled by React state
+                - onChange: Event handler that runs on every keystroke
+                  - e.target.value: The current value in the input field
+                  - setQuery(): Updates the state, which triggers a re-render
+                - onFocus: Event handler when input is focused (clicked/selected)
+                - onBlur: Event handler when input loses focus
+                - placeholder: Placeholder text shown when input is empty
+                - className: Styling classes matching YouTube
+                  - w-full: Full width of container
+                  - bg-transparent: No background (transparent)
+                  - text-white: White text
+                  - text-base: Base text size (16px) matching YouTube's input text size
+                  - placeholder:text-[#9AA0A6]: Lighter gray placeholder text matching YouTube
+                  - outline-none: Removes browser default focus outline
+                  - pl-3 sm:pl-4: Normal padding when no icon
+                  - pl-10 sm:pl-12: Extra left padding when icon appears
+                  - pr-3 sm:pr-4: Right padding
+                */}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={handleInputChange}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Search"
+                  className={`w-full bg-transparent text-white text-base outline-none placeholder:text-[#9AA0A6] pr-3 sm:pr-4 transition-all duration-200 ${(isFocused || query) ? 'pl-8 sm:pl-10' : 'pl-3 sm:pl-4'}`}
+                  aria-label="Search YouTube"
+                  aria-autocomplete="list"
+                  aria-expanded={showSuggestions}
+                  aria-haspopup="listbox"
+                />
+              </form>
+            </div>
 
-          {/* 
-            Search Button - Separate button (matching YouTube's structure)
-            - type="button": Button type (form submission handled by form's onSubmit)
-            - onClick: Handles the search when button is clicked
-            - className: Styling matching YouTube's search button
-              - bg-[#272727]: Slightly lighter gray than input box (visual distinction)
-              - text-white: White text for the icon
-              - px-6: Horizontal padding (more space around icon)
-              - h-11: Same height as input box
-              - rounded-r-full: Rounded right corners (connects to input)
-              - rounded-l-none: Sharp left corners
-              - border: Border matching input box
-              - border-l-0: No left border (seamlessly connects)
-              - border-[#303030]: Same border color
-              - hover:bg-[#3F3F3F]: Lighter background on hover
-              - focus:border-[#1C62B9]: Blue border when focused
-              - flex items-center justify-center: Centers the icon
-          */}
-          <button
-            type="button"
-            onClick={handleSearch}
-            className="bg-[#272727] text-white px-4 sm:px-6 h-12 sm:h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
-            aria-label="Search"
-            title="Search"
-          >
-            {/* White filled magnifying glass icon - matching YouTube's size (18px) */}
-            <SearchIcon className="h-[26px] w-[26px] text-white" />
-          </button>
+            {/* 
+              Search Button - Separate button (matching YouTube's structure)
+              - type="button": Button type (form submission handled by form's onSubmit)
+              - onClick: Handles the search when button is clicked
+              - className: Styling matching YouTube's search button
+                - bg-[#272727]: Slightly lighter gray than input box (visual distinction)
+                - text-white: White text for the icon
+                - px-6: Horizontal padding (more space around icon)
+                - h-11: Same height as input box
+                - rounded-r-full: Rounded right corners (connects to input)
+                - rounded-l-none: Sharp left corners
+                - border: Border matching input box
+                - border-l-0: No left border (seamlessly connects)
+                - border-[#303030]: Same border color
+                - hover:bg-[#3F3F3F]: Lighter background on hover
+                - focus:border-[#1C62B9]: Blue border when focused
+                - flex items-center justify-center: Centers the icon
+            */}
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="bg-[#272727] text-white px-4 sm:px-6 h-12 sm:h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
+              aria-label="Search"
+              title="Search"
+            >
+              {/* White filled magnifying glass icon - matching YouTube's size (18px) */}
+              <SearchIcon className="h-[26px] w-[26px] text-white" />
+            </button>
+          </div>
+          
+          {/* Suggestions dropdown - positioned below input/button container to avoid layout issues */}
+          {(() => {
+            console.log('[Autocomplete] Rendering suggestions dropdown. showSuggestions:', showSuggestions, 'suggestions.length:', suggestions.length);
+            if (showSuggestions && suggestions.length > 0) {
+              console.log('[Autocomplete] Rendering dropdown with', suggestions.length, 'suggestions');
+              return (
+                <div
+                  ref={suggestionsRef}
+                  className="w-full mt-1 bg-[#181818] border border-[#303030] rounded-lg shadow-lg z-50 max-h-[400px] overflow-y-auto"
+                  role="listbox"
+                >
+                  {suggestions.map((suggestion, index) => {
+                    console.log('[Autocomplete] Rendering suggestion', index, ':', suggestion);
+                    return (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleSuggestionClick(suggestion)}
+                        onMouseDown={(e) => e.preventDefault()} // Prevent blur before click
+                        className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-[#272727] transition-colors ${
+                          index === selectedIndex ? 'bg-[#272727]' : ''
+                        } ${index === 0 ? 'rounded-t-lg' : ''} ${index === suggestions.length - 1 ? 'rounded-b-lg' : ''}`}
+                        role="option"
+                        aria-selected={index === selectedIndex}
+                      >
+                        <SearchIcon className="h-5 w-5 text-[#9AA0A6] flex-shrink-0" />
+                        <span className="text-white text-sm flex-1 truncate">{suggestion}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            }
+            console.log('[Autocomplete] Not rendering dropdown');
+            return null;
+          })()}
           </div>
         </div>
       </main>
