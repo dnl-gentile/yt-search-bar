@@ -579,7 +579,7 @@ export default function App() {
             - items-center: Vertically centers content
             - w-full: Full width of parent
           */}
-          <div className="w-full flex items-center">
+          <form onSubmit={handleSearch} className="w-full flex items-center flex-nowrap">
             {/* 
               Input Box Container - Separate div for the input (matching YouTube's structure)
               - flex: Flexbox container for the input
@@ -597,54 +597,49 @@ export default function App() {
               - focus-within:outline-[#1C62B9]: Blue outline color
               - Expands to the left when icon appears (negative margin) without affecting button
             */}
-            <div className={`relative flex items-center bg-[#121212] border border-[#303030] rounded-l-full rounded-r-none h-12 sm:h-11 flex-1 focus-within:border-[#1C62B9] focus-within:outline focus-within:outline-1 focus-within:outline-[#1C62B9] transition-all duration-200 ${(isFocused || query) ? '-ml-8 sm:-ml-10' : ''}`}>
+            <div className="relative flex items-center bg-[#121212] border border-[#303030] rounded-l-full rounded-r-none h-12 sm:h-11 flex-1 min-w-0 focus-within:border-[#1C62B9] focus-within:outline focus-within:outline-1 focus-within:outline-[#1C62B9] transition-all duration-200">
               {/* Magnifying glass icon on the left - only visible when focused or typing, positioned absolutely */}
               {(isFocused || query) && (
                 <div className="absolute left-3 sm:left-4 flex-shrink-0 pointer-events-none z-10">
                   <SearchIcon className="h-5 w-5 text-[#9AA0A6]" />
                 </div>
               )}
-              <form 
-                onSubmit={handleSearch}
-                className={`flex-1 transition-all duration-200 ${(isFocused || query) ? 'ml-5 sm:ml-6' : ''}`}
-              >
-                {/* 
-                Text Input - With magnifying glass icon on the left when focused
-                - type="text": Standard text input
-                - value={query}: Controlled component - value is controlled by React state
-                - onChange: Event handler that runs on every keystroke
-                  - e.target.value: The current value in the input field
-                  - setQuery(): Updates the state, which triggers a re-render
-                - onFocus: Event handler when input is focused (clicked/selected)
-                - onBlur: Event handler when input loses focus
-                - placeholder: Placeholder text shown when input is empty
-                - className: Styling classes matching YouTube
-                  - w-full: Full width of container
-                  - bg-transparent: No background (transparent)
-                  - text-white: White text
-                  - text-base: Base text size (16px) matching YouTube's input text size
-                  - placeholder:text-[#9AA0A6]: Lighter gray placeholder text matching YouTube
-                  - outline-none: Removes browser default focus outline
-                  - pl-3 sm:pl-4: Normal padding when no icon
-                  - pl-10 sm:pl-12: Extra left padding when icon appears
-                  - pr-3 sm:pr-4: Right padding
-                */}
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={handleInputChange}
-                  onFocus={handleFocus}
-                  onBlur={handleBlur}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Search"
-                  className={`w-full bg-transparent text-white text-base outline-none placeholder:text-[#9AA0A6] pr-3 sm:pr-4 transition-all duration-200 ${(isFocused || query) ? 'pl-8 sm:pl-10' : 'pl-3 sm:pl-4'}`}
-                  aria-label="Search YouTube"
-                  aria-autocomplete="list"
-                  aria-expanded={showSuggestions}
-                  aria-haspopup="listbox"
-                />
-              </form>
+              {/* 
+              Text Input - With magnifying glass icon on the left when focused
+              - type="text": Standard text input
+              - value={query}: Controlled component - value is controlled by React state
+              - onChange: Event handler that runs on every keystroke
+                - e.target.value: The current value in the input field
+                - setQuery(): Updates the state, which triggers a re-render
+              - onFocus: Event handler when input is focused (clicked/selected)
+              - onBlur: Event handler when input loses focus
+              - placeholder: Placeholder text shown when input is empty
+              - className: Styling classes matching YouTube
+                - w-full: Full width of container
+                - bg-transparent: No background (transparent)
+                - text-white: White text
+                - text-base: Base text size (16px) matching YouTube's input text size
+                - placeholder:text-[#9AA0A6]: Lighter gray placeholder text matching YouTube
+                - outline-none: Removes browser default focus outline
+                - pl-3 sm:pl-4: Normal padding when no icon
+                - pl-10 sm:pl-12: Extra left padding when icon appears
+                - pr-3 sm:pr-4: Right padding
+              */}
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={handleInputChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                placeholder="Search"
+                className={`w-full bg-transparent text-white text-base outline-none placeholder:text-[#9AA0A6] pr-3 sm:pr-4 transition-all duration-200 ${(isFocused || query) ? 'pl-8 sm:pl-10' : 'pl-3 sm:pl-4'}`}
+                aria-label="Search YouTube"
+                aria-autocomplete="list"
+                aria-expanded={showSuggestions}
+                aria-haspopup="listbox"
+              />
             </div>
 
             {/* 
@@ -666,16 +661,15 @@ export default function App() {
                 - flex items-center justify-center: Centers the icon
             */}
             <button
-              type="button"
-              onClick={handleSearch}
-              className="bg-[#272727] text-white px-4 sm:px-6 h-12 sm:h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
+              type="submit"
+              className="shrink-0 bg-[#272727] text-white px-4 sm:px-6 h-12 sm:h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
               aria-label="Search"
               title="Search"
             >
               {/* White filled magnifying glass icon - matching YouTube's size (18px) */}
               <SearchIcon className="h-[26px] w-[26px] text-white" />
             </button>
-          </div>
+          </form>
           
           {/* Suggestions dropdown - positioned below input/button container to avoid layout issues */}
           {(() => {
@@ -719,4 +713,3 @@ export default function App() {
     </div>
   );
 }
-
