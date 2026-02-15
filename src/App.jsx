@@ -579,7 +579,7 @@ export default function App() {
             - items-center: Vertically centers content
             - w-full: Full width of parent
           */}
-          <form onSubmit={handleSearch} className="w-full flex items-center flex-nowrap">
+          <form onSubmit={handleSearch} className="w-full grid grid-cols-[minmax(0,1fr)_auto] items-center">
             {/* 
               Input Box Container - Separate div for the input (matching YouTube's structure)
               - flex: Flexbox container for the input
@@ -662,9 +662,8 @@ export default function App() {
             */}
             <button
               type="submit"
-              className="shrink-0 bg-[#272727] text-white px-4 sm:px-6 h-12 sm:h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
+              className="bg-[#272727] text-white px-4 sm:px-6 h-12 sm:h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
               aria-label="Search"
-              title="Search"
             >
               {/* White filled magnifying glass icon - matching YouTube's size (18px) */}
               <SearchIcon className="h-[26px] w-[26px] text-white" />
