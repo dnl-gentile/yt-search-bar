@@ -203,6 +203,56 @@ const SearchHeader = () => (
 );
 
 /**
+ * Normalize YouTube suggestion payload values to plain displayable strings.
+ * The endpoint can return strings, nested arrays, or object-like values.
+ */
+const normalizeSuggestionText = (value) => {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const normalized = normalizeSuggestionText(item);
+      if (normalized) {
+        return normalized;
+      }
+    }
+    return '';
+  }
+
+  if (value && typeof value === 'object') {
+    const preferredKeys = ['query', 'text', 'value', 'label', 'q'];
+    for (const key of preferredKeys) {
+      if (typeof value[key] === 'string' && value[key].trim()) {
+        return value[key].trim();
+      }
+    }
+
+    for (const item of Object.values(value)) {
+      const normalized = normalizeSuggestionText(item);
+      if (normalized) {
+        return normalized;
+      }
+    }
+  }
+
+  return '';
+};
+
+const normalizeSuggestions = (list) => {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+
+  const cleaned = list
+    .map((item) => normalizeSuggestionText(item))
+    .filter(Boolean);
+
+  return [...new Set(cleaned)].slice(0, 8);
+};
+
+/**
  * ============================================================================
  * MAIN APP COMPONENT
  * ============================================================================
@@ -297,19 +347,21 @@ export default function App() {
 
       // The API returns an array where the second element contains the suggestions
       if (Array.isArray(data) && data.length > 1 && Array.isArray(data[1])) {
-        const suggestionsList = data[1].slice(0, 8); // Limit to 8 suggestions
+        const suggestionsList = normalizeSuggestions(data[1]);
         console.log('[Autocomplete] Parsed suggestions:', suggestionsList);
         console.log('[Autocomplete] Setting suggestions, count:', suggestionsList.length);
+        const shouldShowSuggestions = suggestionsList.length > 0;
         setSuggestions(suggestionsList);
-        setShowSuggestions(true);
-        console.log('[Autocomplete] showSuggestions set to true');
+        setShowSuggestions(shouldShowSuggestions);
+        console.log('[Autocomplete] showSuggestions set to:', shouldShowSuggestions);
       } else if (Array.isArray(data) && data.length > 0 && Array.isArray(data[0])) {
         // Try alternative format - sometimes suggestions are in data[0]
         console.log('[Autocomplete] Trying alternative format - data[0]');
-        const suggestionsList = data[0].slice(0, 8);
+        const suggestionsList = normalizeSuggestions(data[0]);
         console.log('[Autocomplete] Found suggestions in data[0]:', suggestionsList);
+        const shouldShowSuggestions = suggestionsList.length > 0;
         setSuggestions(suggestionsList);
-        setShowSuggestions(true);
+        setShowSuggestions(shouldShowSuggestions);
       } else {
         console.log('[Autocomplete] Invalid data structure. Data:', data);
         setSuggestions([]);
@@ -420,12 +472,17 @@ export default function App() {
    * Handle suggestion click
    */
   const handleSuggestionClick = (suggestion) => {
-    setQuery(suggestion);
+    const suggestionText = normalizeSuggestionText(suggestion);
+    if (!suggestionText) {
+      return;
+    }
+
+    setQuery(suggestionText);
     setShowSuggestions(false);
     setSelectedIndex(-1);
     
     // Navigate to YouTube search
-    const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(suggestion)}`;
+    const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(suggestionText)}`;
     window.location.href = youtubeSearchUrl;
   };
 
@@ -579,7 +636,11 @@ export default function App() {
             - items-center: Vertically centers content
             - w-full: Full width of parent
           */}
-          <form onSubmit={handleSearch} className="w-full grid grid-cols-[minmax(0,1fr)_auto] items-center">
+          <form onSubmit={handleSearch} className="w-full">
+            <div
+              className="w-full flex items-center flex-nowrap"
+              style={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap' }}
+            >
             {/* 
               Input Box Container - Separate div for the input (matching YouTube's structure)
               - flex: Flexbox container for the input
@@ -662,12 +723,13 @@ export default function App() {
             */}
             <button
               type="submit"
-              className="bg-[#272727] text-white px-4 sm:px-6 h-12 sm:h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
+              className="shrink-0 bg-[#272727] text-white px-4 sm:px-6 h-12 sm:h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
               aria-label="Search"
             >
               {/* White filled magnifying glass icon - matching YouTube's size (18px) */}
               <SearchIcon className="h-[26px] w-[26px] text-white" />
             </button>
+            </div>
           </form>
           
           {/* Suggestions dropdown - positioned below input/button container to avoid layout issues */}
