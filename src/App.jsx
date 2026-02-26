@@ -636,10 +636,17 @@ export default function App() {
             - items-center: Vertically centers content
             - w-full: Full width of parent
           */}
-          <form onSubmit={handleSearch} className="w-full">
+          <form onSubmit={handleSearch} className="w-full min-w-0">
             <div
-              className="w-full flex items-center flex-nowrap"
-              style={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap' }}
+              className="w-full min-w-0"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(0, 1fr) auto',
+                alignItems: 'stretch',
+                width: '100%',
+                minWidth: 0,
+                columnGap: 0,
+              }}
             >
             {/* 
               Input Box Container - Separate div for the input (matching YouTube's structure)
@@ -658,7 +665,7 @@ export default function App() {
               - focus-within:outline-[#1C62B9]: Blue outline color
               - Expands to the left when icon appears (negative margin) without affecting button
             */}
-            <div className="relative flex items-center bg-[#121212] border border-[#303030] rounded-l-full rounded-r-none h-12 sm:h-11 flex-1 min-w-0 focus-within:border-[#1C62B9] focus-within:outline focus-within:outline-1 focus-within:outline-[#1C62B9] transition-all duration-200">
+            <div className="relative w-full min-w-0 flex items-center bg-[#121212] border border-[#303030] rounded-l-full rounded-r-none h-12 sm:h-11 focus-within:border-[#1C62B9] focus-within:outline focus-within:outline-1 focus-within:outline-[#1C62B9] transition-all duration-200">
               {/* Magnifying glass icon on the left - only visible when focused or typing, positioned absolutely */}
               {(isFocused || query) && (
                 <div className="absolute left-3 sm:left-4 flex-shrink-0 pointer-events-none z-10">
@@ -723,7 +730,16 @@ export default function App() {
             */}
             <button
               type="submit"
-              className="shrink-0 bg-[#272727] text-white px-4 sm:px-6 h-12 sm:h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
+              className="bg-[#272727] text-white h-12 sm:h-11 rounded-r-full rounded-l-none border border-l-0 border-[#303030] hover:bg-[#3F3F3F] focus:border-[#1C62B9] flex items-center justify-center"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '84px',
+                minWidth: '84px',
+                flex: '0 0 84px',
+                alignSelf: 'stretch',
+              }}
               aria-label="Search"
             >
               {/* White filled magnifying glass icon - matching YouTube's size (18px) */}
